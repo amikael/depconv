@@ -1,7 +1,8 @@
 # depconv version 0.1 (5 Sep 2017)
+----------------------------------
 A tool for converting between various encoding formats for dependency graphs.  
-
 Copyright (c) 2017 - Anssi Yli-Jyrä      
+
 Developers:
    anssi.yli-jyra () helsinki fi   University of Helsinki
    (you are encouraged to contribute and become a co-developer)
@@ -11,7 +12,14 @@ Acknowledgements:
 
 The GNU License is tentative/negotiable.
 
+Disclaimers:
+------------
+- may contain bugs
+- after an application, this script must be run in the inverse mode to verify that the encoding is lossless and bugless
+
 Citing:
+-------
+
    1) to cite the weak bracketing part: 
       Anssi Yli-Jyrä (2017): 
       Bounded-Depth High-Coverage Search Space for Noncrossing Parses. FSMNLP 2017. Umeå.
@@ -21,9 +29,16 @@ Citing:
       ACL 2017. Vancouver. 
       The algorithm in this paper is not exactly the same, but the encoding comes from this.
    3) the tool as a whole has not be properly published yet, but you can cite parts of it
-      
-Flagship formats:
------------------
+  
+File formats:
+-------------
+1) U-CONNL
+2) one sentence per line (simplified)
+
+Encodings:
+----------
+
+Main formats:
 
 1) U-CONNL (default) (secondary links not supported)
 
@@ -34,7 +49,6 @@ Flagship formats:
    For example   [!1 {} > [!2 {} ]!1 {} ]!2 becomes now   [! {} > [! {} ]! {} ]!
    
 Additional, tentative formats:
-------------------------------
 
 4) K. Oflazer 2003
 
@@ -47,12 +61,8 @@ Additional, tentative formats:
 The algorithms for other formats are included for review purposes and the tool itself
 needs a separate publication.  
 
-
-Disclaimers:
-- may contain bugs
-- after an application, this script must be run in the inverse mode to verify that the encoding is lossless and bugless
-
 Known bugs/caveats & request for help in coding:
+------------------------------------------------
 - currently supports only the U-CONNL primary structure with further restrictions like nonprojective trees
 - the naming of the formats is unsatisfatory
 - does not treat secondary links 
