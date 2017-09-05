@@ -61,7 +61,7 @@ Additional, tentative formats:
 The algorithms for other formats are included for review purposes and the tool itself
 needs a separate publication.  
 
-Known bugs/caveats & request for help in coding:
+Known bugs/caveats & requests for help in coding:
 ------------------------------------------------
 - currently supports only the U-CONNL primary structure with further restrictions like nonprojective trees
 - the naming of the formats is unsatisfatory
