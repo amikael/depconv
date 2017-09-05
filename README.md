@@ -70,7 +70,9 @@ Parts:
 - LIBopts.py - user interface (commandline options etc.)
 - LIBconll1.py - basic U-CONLL handling
 - LIBconll2.py - conversion functions etc.
-
+- LIBstat.py   - the methods for computing various statistics from the data
+                 (this part of the tool is controlled by commenting the useless parts out)
+                 
 extras:
 - ud_per_language.tgz - directories of symbolic links to UD-files used for computing language specific statistics in YJ 2017 
 - enum.depconv.foma - a version of Anssi Yli-Jyrä and Carlos Gómez-Rodríguez (2017) with some
