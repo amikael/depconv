@@ -1,0 +1,977 @@
+# (c) 2017 Anssi Yli-Jyrä
+# experiments related to Yli-Jyrä & Gómez-Rodriguez (2017)
+#
+# Please cite this software as follows:
+#
+#   Anssi Yli-Jyrä and Carlos Gómez-Rodriguez
+#   Axiomatization of Families of Noncrossing Graph in Dependency Parsing
+#   Accepted to ACL 2017, Vancouver.
+#   
+# subfiles:
+#    enum-total.foma
+#    enum-examples.foma
+
+set print-space ON
+
+#########################
+# COMMON HELPER FUNCTIONS
+#########################
+# This function extracts the alphabet of the language:
+def Alpha(X)  [ X .o. ?:0* ? ?:0* ].2;
+# This function extracts the bigrams of the language:
+def Bigrams(X)  [ X .o. ?:0* ? ? ?:0* ].2;
+# This function constructs the local language from bigrams
+def LocalLanguage(Bigrams) "$" \"$"* "$" - ?* [ ? ? - Bigrams ] ?* ;
+# This function removes the string boundaries ($) 
+def RemoveBoundaries(L)    [ L .o. "$":0 \"$"* "$":0 ].2;
+
+###################################
+# THE REGULAR COMPONENT IN FIGUR  3
+###################################
+# We defined the local language Reg first by thinking through
+# plausible examples and then extracting a local language from it:
+def Examples Bigrams(                                                                    "$" "$" | 
+              "$"            "{" "}"               "{" "}"                                   "$" |
+              "$"       "['" "{" "}" "]'" "[" "['" "{" "}" "]'" "[" "{" "}" "]" "]"          "$" |
+              "$"       "['" "{" "}" "]'" "["      "{" "}" "]"  "[" "{" "}" "]"      "{" "}" "$" |
+	      "$"  "['" "['" "{" "}" "]'"          "{" "}" "["      "{" "}" "]" "]'"         "$" ) |
+	      "['" "$" |    # this is not intuitive: we let the strings end prematurely
+              "["  "$" ;    # this is not intuitive: we let the strings end prematurely
+# The second method is to build the local language directly:
+def Design  [ "{"  "}"  |                                                 # state 1
+	      "$"  "['" | "['" "['" | "[" "['" | "$" "$" |                # state 0
+              "$"  "{"  | "['" "{"  | "[" "{"  | "[" "$"   | "['" "$" |   # state 0
+	      "}"  "{"  | "}"  "["  | "}"  "$" |  "}"  "]" | "}" "]'" |   # state 2
+	      "]"  "{"  | "]"  "["  | "]"  "$" |  "]"  "]" | "]" "]'" |   # state 2
+              "]'" "{"  | "]'" "["  | "]'" "$" ];                         # state 3	      
+def Reg RemoveBoundaries(LocalLanguage(Design));
+
+#############
+# CHAIN MODEL
+#############
+
+# First we describe chain model (Figure 4).
+# Since this is a local language/automaton, we describe the automaton
+# by using equivalence classes of symbols and listing the pairs of
+# adjacent symbols.
+#
+# Later, we extract only the transition between two kinds of brackets
+# and combine this with the information on the inverse homomorphic
+# image of Reg (Figure 3).
+#
+# Note: the following has evolved organically and may contain redundant parts.
+
+# Equivalence classes, or just classes:
+
+# a primarily bidirectional forward chain:
+def A      [ "[A"  "]A"  | "/A"  ">A"   | "<A"  "\\A"  ];
+def AA     [               "/0"  ">0"                  ];
+def a      [ "[a"  "]a"  | "<a"  "\\a"  | "/a"  ">a"   ];
+def aa     [               "<0"  "\\0"                 ];
+# a primarily foward chain:
+def C      [ "[C"  "]C"  | "/C"  ">C"   | "<C"  "\\C"  ];
+def CC     [               "<1"  "\\1"                 ];
+def c      [ "[c"  "]c"  | "<c"  "\\c"  | "/c"  ">c"   ];
+def cc     [               "/1"  ">1"                  ];
+# a primarily forward 2-turn chain
+def E      [ "[E"  "]E"  | "/E"  ">E"   | "<E"   "\\E" ];
+def EE     [               "/2"  ">2"                  ];
+def e      [ "[e"  "]e"  | "<e"   "\\e" | "/e"  ">e"   ];
+def ee     [               "<2"  "\\2"                 ];
+# a forward chain
+def F      [               "/F"  ">F"                  ];
+def FF     [               "/F'" ">F'"                 ];
+def f      [               "<f"  "\\f"                 ];
+def ff     [               "<f'" "\\f'"                ];
+# a primarily forward chain:
+# P indicates a non-inverted that does not cover a 2-turn chain
+def P      [               "/P"  ">P"                  ];
+def Q      [ "[Q"  "]Q"  | "/Q"  ">Q"   | "<Q"  "\\Q"  |  "/P"  ">P" ];
+def QQ     [ "[Q"  "]Q"  | "/Q"  ">Q"   | "<Q"  "\\Q"  ];
+def p      [               "<p"  "\\p"                 ];
+def q      [ "[q"  "]q"  | "/q"  ">q"   | "<q"  "\\q"  |  "<p" "\\p" ];
+def qq     [ "[q"  "]q"  | "/q"  ">q"   | "<q"  "\\q"  ];
+# forward edges that cover a 2-turn chain
+def V      [               "/V"  ">V"                  ];
+def VV     [               "/V'" ">V'"                 ];
+def v      [               "<v"  "\\v"                 ];
+def vv     [               "<v'" "\\v'"                ];
+# a 3-turn chain:
+def ZZ     [               "<3"  "\\3"                 ];
+def zz     [               "/3"  ">3"                  ];
+def Z      [ "[Z"  "]Z"  | "/Z"  ">Z"   | "<Z"  "\\Z"  ];
+# a bidirectional chain:
+def II     [ "[I'" "]I'" | "/I'" ">I'"  | "<I'" "\\I'" ];
+def I      [ "[I"  "]I"  | "/I"  ">I"   | "<I"  "\\I"  ];
+# a loose chain:
+def X      [ "[."  "]."  | "/."  ">."   | "<."  "\\."  ];
+def XX     [ "[."  "]."  | "/."  ">."   | "<."  "\\."  ];
+
+# the adjacent symbols:
+
+def TRANS  "$" [FF|ff|VV|vv|II|XX] |
+	   [I|II]      [ I | AA | aa | v | V ] |	   
+	   [A|AA]      [ A | CC          ] | 
+	   [a|aa]      [ a | cc          ] | 
+	   [F|FF]      [ F | CC | V | QQ ] | 
+	   [f|ff]      [ f | cc | v | qq ] | 
+	   [q|qq|v|vv] [ q | cc | v      ] | 
+	   [Q|QQ|V|VV] [ Q | CC | V      ] | 
+	   [C|CC]      [ C | EE          ] |
+	   [c|cc]      [ c | ee          ] |
+	   [E|EE]      [ E | ZZ          ] |
+	   [e|ee]      [ e | zz          ] |
+           [Z|ZZ|zz]   Z  |
+	   [X|XX]      XX ;
+
+###############
+# DYCK LANGUAGE
+###############
+# This extracts matching brackets from the chain model
+def TRANSBrackets   [ TRANS
+                      .o. "$":0 ? ? | ? ? ?:0 ?:0 | ?:0 ?:0 ? ?
+		    ].2;                                      
+# The matching brackets give rise to a Dyck language D_{23}.
+# Its stepwise, reflexive derivation relation is expressed as an FST:
+def Pairs  [ "{" "}" | TRANSBrackets ] | 0;
+def T55    [ ? | [ Pairs .x. 0]]*;
+
+# This extracts neighbouring brackets:
+def TRANSNeighbors  [ TRANS
+                      .o. ? [ ? <> ?:0 ] | [ ? <> ?:0 ] [ ? <> ?:0 ] 
+                    ].2;
+
+########################
+# SIGMA AND ITS SEGMENTS
+########################
+# Construct the latent symbolsets
+def L    [ TRANSBrackets .o. ? ?:0 ].2 ;                # Opening edge brackets
+def R    [ TRANSBrackets .o. ?:0 ? ].2 ;                # Closing edge brackets
+
+def L2X  "<0"| "<1" | "<2"| "<3"| "<A"| "<C"| "<E"| "<f" | "<f'"| "<I"| "<p"| "<Q"|
+         "<v"| "<v'"| "<p"| "<Z"| "<a"| "<c"| "<e"| "<I'"| "<q" | "<.";
+def R2X "\\0"|"\\1" |"\\2"|"\\3"|"\\A"|"\\C"|"\\E"|"\\f" |"\\f'"|"\\I"|"\\p"|"\\Q"|
+        "\\v"|"\\v'"|"\\p"|"\\Z"|"\\a"|"\\c"|"\\e"|"\\I'"|"\\q" | "\\.";
+def L1X  "/0"|  "/1"| "/2"| "/3"| "/A"| "/C"| "/E"| "/F" | "/F'"| "/I"| "/P"| "/Q"|
+         "/V"| "/V'"| "/P"| "/Z"| "/a"| "/c"| "/e"| "/I'"| "/q" | "/.";
+def R1X  ">0"|  ">1"| ">2"| ">3"| ">A"| ">C"| ">E"| ">F" | ">F'"| ">I"| ">P"| ">Q"|
+         ">V"| ">V'"| ">P"| ">Z"| ">a"| ">c"| ">e"| ">I'"| ">q" | ">.";
+def L3X                           "[A"| "[C"| "[E"| "[I" |                    "[Q"|
+                            "[Z"| "[a"| "[c"| "[e"| "[I'"| "[q" | "[.";
+def R3X                           "]A"| "]C"| "]E"| "]I" |                    "]Q"|
+                            "]Z"| "]a"| "]c"| "]e"| "]I'"| "]q" | "].";
+
+# The left and right brackets of initial edge in nonloose chains:
+def R0     [ "]I'" | ">F'" | "\\f'" | "\\I'" | ">I'" | ">V'" | "\\v'" ];
+def L0     [ "[I'" | "/F'" | "<f'"  | "<I'"  | "/I'" | "/V'" | "<v'"  ];
+def R9     [ "]." | ">." | "\\." ];
+def L9     [ "[." | "/." | "<."  ];
+def NonL9  L - L9;
+
+# There are in total  108 edge brackets:
+def sigma [ L1X | R1X | L2X | R2X | L3X | R3X ] | "{" | "}";
+def SIGMA L | R  | "{" | "}" ;
+
+def Map     [ "[":L3X    | "<":L2X    | "/":L1X    | "{"   | 
+              "]":R3X    | "\\":R2X   | ">":R1X    | "}"   |  \SIGMA  ]*;
+
+####################
+# THE INPUT SENTENCE
+####################
+# The input sentences that have all possible brackets
+def WB   "{" "}";
+def W    \[ "{" | "}" ]*;
+def GB   W WB W WB W WB W WB W WB W WB W WB W WB W WB W WB W ;
+def GA   W WB W WB W WB W WB W WB W WB W WB W WB W WB W ;
+def G9   W WB W WB W WB W WB W WB W WB W WB W WB W ;
+def G8   W WB W WB W WB W WB W WB W WB W WB W ;
+def G7   W WB W WB W WB W WB W WB W WB W ;
+def G6   W WB W WB W WB W WB W WB W ;
+def G5   W WB W WB W WB W WB W ;
+def G4   W WB W WB W WB W ;
+def G3   W WB W WB W ;
+def G2   W WB W ;
+def G1   W ;
+def G0   0;
+
+##########################################################
+# RELATING SIGMA [[']]'{}$ TO THE EXTENDED SET OF BRACKETS
+##########################################################
+# Expand the alphabet in Reg to the alphabet in Reg_latent:
+def ExpandSigma(X)  [ X .o. [ "['":L0    | "]'":R0    | "{" | 
+                              "[":[L-L0] | "]":[R-R0] | "}" | "$" ]* ].2;
+
+##############################################################
+# The subsets of the alphabet defined in the end of section 5:
+##############################################################
+
+def Lslash     L3X   | L1X;   # / [ -brackets
+def Rgt        R3X   | R1X;   # ] > -brackets
+def Llt        L3X   | L2X;   # [ < -brackets
+def Rbslash    R3X   | R2X;   # ] \\-brackets
+def B          "{"   | "}";
+def Rsigma     R ;
+def Rloose     ">." | "]." | "\\." | "}";
+def Rnonloose  R - Rloose;
+
+# R reaching F, Q, I, A 
+def Rright     [[F|FF|QQ|Q|P|II|I|AA|A|VV|V] .o. ?:0 ?].2;
+def Rleft      [[f|ff|qq|q|p|II|I|aa|a|vv|v] .o. ?:0 ?].2;
+
+def Right2     [[P|EE|E] .o. ?:0 ?].2;
+def Left2      [[p|ee|e] .o. ?:0 ?].2;
+def In         R1X | L2X | L3X | R3X ;
+def NonB       R   | L ;
+
+# Non-' right edges reaching I, Q, q, A, a, C, c
+def Rvergent   [[I|QQ|Q|qq|q|P|p|VV|V|vv|v|AA|A|aa|a|CC|C|cc|c] .o. ?:0 ?].2;
+def Or         R1X | L2X | L1X | R2X ;   # brackets of oriented edges
+def Inv        L3X   | R3X ;             # brackets of inverted edges
+
+def LB         "$" | "{";
+def RB         "$" | "}";
+
+# Closing brackets for left and right monotonic chains and vergent chains
+
+def Inverted    ">I'"  | ">I"  | ">Q"  | ">q" |"\\A" | ">C"  |"\\E" |
+                "\\I'" |"\\I"  |"\\Q"  |"\\q" | ">a" | "\\c" | ">e" ;
+def NonInverted ">F'"  | ">F"  | ">0"  | ">P" |"\\1" | ">2"  |"\\3" | ">V'" |  ">V" | ">P"  |
+                "\\f'" |"\\f"  |"\\0"  |"\\p" | ">1" | "\\2" | ">3" |"\\v'" | "\\v" | "\\p" ;
+def Almost      ">V'"  | ">V"  |"\\v'" |"\\v" ;
+def NotAlmost   ">F'"  | "\\f'"| ">F"  |"\\f" | ">Q" | ">P"  |"\\p" |"\\q" | ">0" | "\\0";
+
+########################
+# CONSTRAINTS IN TABLE 1
+########################
+
+def ACYCU      ?* - ?* Rnonloose Rsigma ?* ;
+def CONNW      ?* - ?* Rloose (B ?*) - ("{" ?* | ?* "}" ) ;
+def ACYCD      ?* - ?* [ Rright Rbslash | Rleft Rgt | Inv ] ?* ;
+def UNAMB      ?* - ?* [ Rright Rgt 
+                       | Rleft  Rbslash 
+                       | Rvergent R 
+                       | Right2 Rbslash
+                       | Left2  Rgt
+                    ] ?*;
+def PROJW      ?* - ?* [ Lslash Llt | Rgt Rbslash ] ?* ;
+def INV        ?* - ?* [ Or ] ?* ;
+def ORIEN      ?* - ?* [ Inv ] ?* ;
+def OUT        ?* - ?* [ In NonB* In ] ?* ;
+
+def LooseChainConstraint  ?* - ?* [ [    "}" | R9 ] [ L - L9 | "}" ] | 
+    			            [? - "}" - R9 ] [ L9           ] ] ?*;
+def CycleEdges  ?*          
+             -  [ ?* Rright          [ Rbslash & NonInverted ] ?* ] 
+             -  [ ?* Rleft           [ Rgt     & NonInverted ] ?* ] 
+             -  [ [ ?* - ?* Rright ] [ Rbslash &    Inverted ] ?* ] 
+             -  [ [ ?* - ?* Rleft  ] [ Rgt     &    Inverted ] ?* ] ;
+def TwoTurnEdges ?*
+             -  [ ?* Left2           [ Rbslash &   NotAlmost ] ?* ]
+             -  [ ?* Right2          [ Rgt     &   NotAlmost ] ?* ]
+             -  [ [ ?* - ?* Left2  ] [ Rbslash &      Almost ] ?* ]
+             -  [ [ ?* - ?* Right2 ] [ Rgt     &      Almost ] ?* ] ;
+
+def RegBigrams  ExpandSigma(Design);
+def RegLat   RemoveBoundaries(LocalLanguage( [ TRANSNeighbors & R L & RegBigrams ] | [ RegBigrams - R L ]))  
+             & CycleEdges & TwoTurnEdges & LooseChainConstraint ;
+
+################
+# VISUALIZATIONS
+################
+regex Reg;  
+#view                                         # Uncomment to see the Reg in Figure 3
+regex S "->" [ Pairs .o. (? 0:S ? 0:S) ].2;  
+#print words                                  # Uncomment to see the Dyck grammar
+regex RemoveBoundaries(LocalLanguage( TRANSNeighbors | ? "$"));
+#view                                         # Uncomment to see (almost) Figure 4 
+# It is almost:  it does not even accept the string  /F' >F' because it does not read 
+# pairs of brackets but individual bracket symbols, changing states after the first.
+
+#############
+# UNIT TESTS:
+#############
+echo 
+echo ************* UNIT TESTS FOR REG **************
+# There should not be any difference between Design and Examples
+regex [ Design - Examples ] | [ Examples - Design ];
+print words
+echo Reg derived from one of these has 4 states:
+regex Reg;
+echo
+echo ************* UNIT TESTS FOR FIGURE 4 **************
+echo TransBracket has 56 states, 108 arcs, 54 paths.
+regex TRANSBrackets;
+echo Pairs have 55 pairs of brackets + 1 empty string = 56 paths
+regex Pairs;
+echo sigma has 110 symbols
+regex sigma;
+echo TEST 1: sigma and SIGMA must coincide: 0 states and 0 transitions:
+regex     [ SIGMA - sigma ] | [ sigma - SIGMA ];
+echo
+echo ************* TEST BIGRAM COVERAGE ***************
+def XTEST  WB  |
+   "/V'" "/F'" "{" "}" ">F'" "<1" "{" "}" "\\1" "/2" "{" "}" ">2" "<E" "/F'" "{" "}" ">F'" "/F" "{" "}" ">F" "\\E" ">V'" |
+   "/F'" "/F'" "<f'" "{" "}" "\\f'" "/1" "{" "}" ">1" "<2" "{" "}" "\\2" ">F'" "{" "}" ">F'" |
+   "/F'" "{" "}" "/." "/F'" "{" "}" ">F'" "/F" "{" "}" ">F" ">." "{" "}" ">F'" |
+   "<I'" "/V'" "/F'" "{" "}" ">F'" "<1" "{" "}" "\\1" "/2" "{" "}" ">2" ">V'" "/P" "{" "}" ">P" "\\I'" |
+   "[I'" WB "]I'" |
+   "/F'" WB ">F'" "<1" WB "\\1" |
+   "{" "}" "{" "}" "/." "{" "}" ">." |
+   "[I'" "{" "}" "]I'" "/0" "{" "}" ">0" "/A" "<f'" "{" "}" "\\f'" "<f" "{" "}" "\\f" ">A" |
+   "<f'" "/F'" "{" "}" ">F'" "<1" "{" "}" "\\1" "<C" "/F'" "{" "}" ">F'" "/F" "{" "}" ">F" "\\C" "\\f'" |
+   "[I'" "<f'" "{" "}" "\\f'" "/1" "{" "}" ">1" "/c" "<f'" "{" "}" "\\f'" "<f" "{" "}" "\\f" ">c" "]I'" |
+   "[I'" "/F'" "{" "}" ">F'" "<1" "{" "}" "\\1" "/C" "[I'" "{" "}" "]I'" "<0" "{" "}" "\\0" ">C" "]I'" |
+   "{" "}" "/." "{" "}" ">." "<." "{" "}" "\\." ;
+regex Bigrams(XTEST) - Bigrams(RegLat) ;
+echo the following should be empty list of bigrams:
+echo **********************************
+print words
+echo **********************************
+echo
+
+
+# This uses the YJ&GR method to generate A174687 (out oriented trees)
+# (WEAK(X) does not do anything.)
+def WEAK(X) X;
+def B1  WEAK([ G1 .o. RegLat .o. OUT .o. ACYCD .o. CONNW .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o.
+                                         T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. 0 ].1);
+def B2  WEAK([ G2 .o. RegLat .o. OUT .o. ACYCD .o. CONNW .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o.
+                                         T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. 0 ].1);
+def B3  WEAK([ G3 .o. RegLat .o. OUT .o. ACYCD .o. CONNW .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o.
+                                         T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. 0 ].1);
+def B4  WEAK([ G4 .o. RegLat .o. OUT .o. ACYCD .o. CONNW .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o.
+                                         T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. 0 ].1);
+def B5  WEAK([ G5 .o. RegLat .o. OUT .o. ACYCD .o. CONNW .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o.
+                                         T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. 0 ].1);
+def B6  WEAK([ G6 .o. RegLat .o. OUT .o. ACYCD .o. CONNW .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o.
+                                         T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. 0 ].1);
+#def B7  WEAK([ G7 .o. RegLat .o. OUT .o. ACYCD .o. CONNW .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o.
+#                                         T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. 0 ].1);
+#def B8  WEAK([ G8 .o. RegLat .o. OUT .o. ACYCD .o. CONNW .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o.
+#                                         T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. 0 ].1);
+#def B9  WEAK([ G9 .o. RegLat .o. OUT .o. ACYCD .o. CONNW .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o.
+#                                         T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. 0 ].1);
+#def B10  WEAK([ GA .o. RegLat .o. OUT .o. ACYCD .o. CONNW .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o.
+#                                         T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. 0 ].1);
+#exit
+
+
+
+
+# Achievement 1:  PDA producing weak bracketing
+###############################################
+
+# This produces an automaton that shows the inside of the loop in language C in Figure 2
+def LSplit  ( "[" ) ( "[":"[!" "[":"[0"* );
+def RSplit  ( "]":"]0"* "]":"]!" ) ( "]" );
+def Split   ( LSplit "{" "}" RSplit )*;
+regex Split.2;
+#view
+#dot > dot-split.dot
+#exit
+#/ / { } > { } >
+def LSplit  ( "[" | "<" | "/"  ) ( [ "[":"[!" | "<":"<!" | "/":"/!"   ]  ( "[":"[0" | "<":"<0" | "/" :"/0"  )* );
+def RSplit  ( ( "]":"]0" | ">":">0" | "\\":"\\0" )* [ "]":"]!" | ">":">!" | "\\":"\\!" ]  ) ("]" | ">" | "\\") ;
+def Split   ( LSplit "{" "}" RSplit )*;
+#def RSplit ">";
+
+# This the relation T4 implementing the Dyck language
+def R    "{"  "}"   -> 0,
+       	 "<"  "\\0" -> 0,    	 "<0" "\\"  -> 0,	 "<!" "\\!" -> 0,
+       	 "/"  ">0"  -> 0,    	 "/0" ">"   -> 0,	 "/!" ">!"  -> 0,
+       	 "["  "]0"  -> 0,    	 "[0" "]"   -> 0,	 "[!" "]!"  -> 0;
+
+# This is transducer E 
+def Z    "/0" | "[0" | "<0" | "\\0" | "]0" | ">0" -> 0;
+
+def SURF(X)  [ X .o. Map.i ].2;
+def WEAK(X)  [ [ [X .o. Map.i .o. Split].2 .o. R .o. R .o. R .o. R .o. R .o. R .o. R .o. R .o. R .o. R .o. R .o. R .o. ("{" "}")* ].1 .o. Z ].2;
+
+# projective trees in weak bracketing
+def B1  [ G1 .o. RegLat .o. PROJW .o. ACYCD .o. CONNW .o. OUT .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. 0 ].1;
+def B2  [ G2 .o. RegLat .o. PROJW .o. ACYCD .o. CONNW .o. OUT .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. 0 ].1;
+def B3  [ G3 .o. RegLat .o. PROJW .o. ACYCD .o. CONNW .o. OUT .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. 0 ].1;
+def B4  [ G4 .o. RegLat .o. PROJW .o. ACYCD .o. CONNW .o. OUT .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. 0 ].1;
+def B5  [ G5 .o. RegLat .o. PROJW .o. ACYCD .o. CONNW .o. OUT .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. 0 ].1;
+def B6  [ G6 .o. RegLat .o. PROJW .o. ACYCD .o. CONNW .o. OUT .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. 0 ].1;
+#def B7  [ G7 .o. RegLat .o. PROJW .o. ACYCD .o. CONNW .o. OUT .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. 0 ].1;
+#def B8  [ G8 .o. RegLat .o. PROJW .o. ACYCD .o. CONNW .o. OUT .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. 0 ].1;
+#def B9  [ G9 .o. RegLat .o. PROJW .o. ACYCD .o. CONNW .o. OUT .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. 0 ].1;
+#def B10  [ GA .o. RegLat .o. PROJW .o. ACYCD .o. CONNW .o. OUT .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. 0 ].1;
+
+def OPT(X) [WEAK(X)];
+regex OPT(B1);
+regex OPT(B2);
+regex OPT(B3);
+regex OPT(B4);
+regex OPT(B5);
+regex OPT(B6);
+#regex OPT(B7);
+#regex OPT(B8);
+#regex OPT(B9);
+#regex OPT(B10);
+
+def OPT(X) [WEAK(X) .o. [ "<!" | "/!" -> "[!"]].2;
+regex OPT(B1);
+regex OPT(B2);
+regex OPT(B3);
+regex OPT(B4);
+regex OPT(B5);
+regex OPT(B6);
+#regex OPT(B7);
+#regex OPT(B8);
+#regex OPT(B9);
+#regex OPT(B10);
+
+regex B6 .o. Map.i .o. Split .o. R .o. R .o. R .o. R .o. R .o. R .o. R .o. 0;
+#exit
+
+# Achievement 7:  Kielioppi joka tuottaa madallettuja sulutuksia
+################################################################
+
+# Tämä kielioppi olettaa, että ! on uloimman sisaren ominaisuus
+
+def LLL  [ [ "[" | "<" | "/" ]  [ "{" "}" ]+ ]* ;
+def RRR  [ [ "{" "}" ]+ [ "]" | "\\" | ">" ] ]* ;
+def RU   "<!" ( "<0" | "[0" | "/0" )* RRR ("{" "}")* LLL ( ">0" | "]0" | "\\0" )* "\\!" -> "{" "}",
+         "/!" ( "<0" | "[0" | "/0" )* RRR ("{" "}")* LLL ( ">0" | "]0" | "\\0" )* ">!"  -> "{" "}",
+	 "[!" ( "<0" | "[0" | "/0" )* RRR ("{" "}")* LLL ( ">0" | "]0" | "\\0" )* "]!"  -> "{" "}";
+def  grammar [ RU .o. RU .o. RU .o. ("{" "}")* ].1;
+# Tämän kieliopin ongelma on, että se voi tuottaa myös sellaisia sulutuksia kuin
+#   [ [ {} ] ]  =>  [! {} ] ]!
+#
+
+# S → ( [S′] | {} )*,
+# S′→ {} ( [S′] | {} )* | [S′] ( [S′] | {} )+
+
+# S   → ( [! S′  ]! | {} )*
+# S′  → ( [0 U   ]  | {} ) ( [! S′  ]! | {} )* ( [  T   ]0 | {} ) | {}
+# U   → ( [0 U   ]  | {} ) ( [! S′  ]! | {} )* ( [! S'  ]! | {} ) | {}              
+# T   → ( [! S′  ]! | {} ) ( [! S′  ]! | {} )* ( [  T   ]0 | {} ) | {}
+
+# S   → S′*
+# S′  → {} |                [!    {}    ]!
+#          |                [! U  S′* T ]! 
+# U   → {} |    {} S'* ]  (       S′+   ] )* 
+# T   → {} |              ( [     S′+     )*  [ S'* {} 
+
+# Grammar for digraphs
+def Ba  "[" | "]" | "[!" | "]!" | "<" | "<!" | "/" | "/!" | ">" | ">!" | "\\" | "\\!";
+def RBa "]" | ">" | "\\";
+def LBa "[" | "<" | "/";
+def GU  "{" "}" ["{" "}"|S]* RBa [["{" "}"|S]+ RBa ]* | "{" "}"; 
+def GT  [ LBa ["{" "}"|S]+]* LBa ["{" "}"|S]* "{" "}" | "{" "}";
+def G   [ [ "[!" GU ["{" "}"|S]* GT  "]!" | "[!" "{" "}"  "]!"
+          | "<!" GU ["{" "}"|S]* GT "\\!" | "<!" "{" "}" "\\!"
+	  | "/!" GU ["{" "}"|S]* GT  ">!" | "/!" "{" "}"  ">!" ]:0 0:S | ? ]* ;
+
+def AG01 [ [ Ba* "{" "}" Ba* ]^1 .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG02 [ [ Ba* "{" "}" Ba* ]^2 .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG03 [ [ Ba* "{" "}" Ba* ]^3 .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG04 [ [ Ba* "{" "}" Ba* ]^4 .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG05 [ [ Ba* "{" "}" Ba* ]^5 .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG06 [ [ Ba* "{" "}" Ba* ]^6 .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG07 [ [ Ba* "{" "}" Ba* ]^7 .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+#exit
+
+# Grammar for graphs
+# S   → S′*
+# S′  → {} |                [!    {}    ]!
+#          |                [! U  S′* T ]! 
+# U   → {} |    {} S'* ]  (       S′+   ] )* 
+# T   → {} |              ( [     S′+     )*  [ S'* {} 
+
+def Ba  "[" | "]" | "[!" | "]!";
+def GU  "{" "}" S* "]" [ S+ "]" ]* | "{" "}"; 
+def GT  [ "[" S+ ]* "[" S* "{" "}" | "{" "}";
+def G   [ [ "[!" GU S* GT "]!" | "[!" "{" "}" "]!" | "{" "}" ]:0 0:S | ? ]* | S*:0 ;
+
+def Ba  "[" | "]" | "[!" | "]!";
+def GU  "{" "}" ["{" "}"|S]* "]" [ ["{" "}"|S]+ "]" ]* | "{" "}"; 
+def GT  [ "[" ["{" "}"|S]+ ]* "[" ["{" "}"|S]* "{" "}" | "{" "}";
+def G   [ [ "[!" GU ["{" "}"|S]* GT "]!" | "[!" "{" "}" "]!" ]:0 0:S | Ba | "{" | "}" ]* ;
+
+
+# defined AG29: 20.2 MB. 589598 states, 1326441 arcs, more than 9223372036854775807 paths.
+# defined AG29: 20.2 MB. 589598 states, 1326441 arcs, more than 9223372036854775807 paths.
+def AG9 [ [ Ba* "{" "}" Ba* ]^9 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+#def AG34 [ [ Ba* "{" "}" Ba* ]^34
+#           .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G ];
+#def AG34 AG34            .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G ;
+#def AG34 [ AG34            .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G
+#           .o. ["{" "}"|S]* ].1;
+##def AG34 [ [ Ba* "{" "}" Ba* ]^34
+#           .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G 
+#           .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G
+#           .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G
+#           .o. G .o. G 
+#           .o. ["{" "}"|S]* ].1;
+#exit
+def AG01 [ [ Ba* "{" "}" Ba* ]^1 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG02 [ [ Ba* "{" "}" Ba* ]^2 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG03 [ [ Ba* "{" "}" Ba* ]^3 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG04 [ [ Ba* "{" "}" Ba* ]^4 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG05 [ [ Ba* "{" "}" Ba* ]^5 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG06 [ [ Ba* "{" "}" Ba* ]^6 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG07 [ [ Ba* "{" "}" Ba* ]^7 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG08 [ [ Ba* "{" "}" Ba* ]^8 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG09 [ [ Ba* "{" "}" Ba* ]^9 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG10 [ [ Ba* "{" "}" Ba* ]^10 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG11 [ [ Ba* "{" "}" Ba* ]^11 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG12 [ [ Ba* "{" "}" Ba* ]^12 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG13 [ [ Ba* "{" "}" Ba* ]^13 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG14 [ [ Ba* "{" "}" Ba* ]^14 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG15 [ [ Ba* "{" "}" Ba* ]^15 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG16 [ [ Ba* "{" "}" Ba* ]^16 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG17 [ [ Ba* "{" "}" Ba* ]^17 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG18 [ [ Ba* "{" "}" Ba* ]^18 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG19 [ [ Ba* "{" "}" Ba* ]^19 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG20 [ [ Ba* "{" "}" Ba* ]^20 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+exit
+
+def Ba  "[" | "]" | "[!" | "]!";
+def GU  "{}" ["{}"|S]* "]" [ ["{}"|S]+ "]" ]* | "{}"; 
+def GT  [ "[" ["{}"|S]+ ]* "[" ["{}"|S]* "{}" | "{}";
+def G   [ [ "[!" GU ["{}"|S]* GT "]!" | "[!" "{}" "]!" ]:0 0:S | Ba | "{}" ]* ;
+
+def AG01 [ [ Ba* "{}" Ba* ]^1 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{}"|S]* ].1;
+def AG34 [ [ Ba* "{}" Ba* ]^34
+           .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G ];
+def AG34 AG34            .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G ;
+def AG34 [ AG34            .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G
+           .o. ["{}"|S]* ].1;
+exit
+
+exit
+def Ba  "[" | "]" | "[!" | "]!";
+def GU  "{}" ["{}"|S]* "]" [ ["{}"|S]+ "]" ]* | "{}"; 
+def GT  [ "[" ["{}"|S]+ ]* "[" ["{}"|S]* "{}" | "{}";
+def G   [ [ "[!" GU ["{}"|S]* GT "]!" | "[!" "{}" "]!" ]:0 0:S | Ba | "{}" ]* ;
+
+def AG01 [ [ Ba* "{}" Ba* ]^1 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{}"|S]* ].1;
+def AG02 [ [ Ba* "{}" Ba* ]^2 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{}"|S]* ].1;
+def AG03 [ [ Ba* "{}" Ba* ]^3 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{}"|S]* ].1;
+def AG04 [ [ Ba* "{}" Ba* ]^4 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{}"|S]* ].1;
+def AG05 [ [ Ba* "{}" Ba* ]^5 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{}"|S]* ].1;
+def AG06 [ [ Ba* "{}" Ba* ]^6 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{}"|S]* ].1;
+def AG07 [ [ Ba* "{}" Ba* ]^7 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{}"|S]* ].1;
+def AG08 [ [ Ba* "{}" Ba* ]^8 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{}"|S]* ].1;
+def AG09 [ [ Ba* "{}" Ba* ]^9 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{}"|S]* ].1;
+def AG10 [ [ Ba* "{}" Ba* ]^10 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{}"|S]* ].1;
+def AG11 [ [ Ba* "{}" Ba* ]^11 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{}"|S]* ].1;
+def AG12 [ [ Ba* "{}" Ba* ]^12 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{}"|S]* ].1;
+def AG13 [ [ Ba* "{}" Ba* ]^13 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{}"|S]* ].1;
+def AG14 [ [ Ba* "{}" Ba* ]^14 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{}"|S]* ].1;
+def AG15 [ [ Ba* "{}" Ba* ]^15 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{}"|S]* ].1;
+def AG16 [ [ Ba* "{}" Ba* ]^16 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{}"|S]* ].1;
+def AG17 [ [ Ba* "{}" Ba* ]^17 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{}"|S]* ].1;
+def AG18 [ [ Ba* "{}" Ba* ]^18 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{}"|S]* ].1;
+def AG19 [ [ Ba* "{}" Ba* ]^19 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{}"|S]* ].1;
+def AG20 [ [ Ba* "{}" Ba* ]^20 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{}"|S]* ].1;
+exit
+
+echo -------
+#echo -
+#regex  [[ G .o. G .o. ["{" "}"|S]* ].1 .o. "{" "}" -> "{}" ].2 .o. ?* "[" "[!" ?*;
+#print words
+#regex G;
+#dot >dot-gram2.dot
+#view
+#exit
+#def Ba  "[" | "]" | "[!" | "]!";
+#def GU  "{}" ["{}"|S]* "]" [ ["{}"|S]+ "]" ]* | "{}"; 
+#def GT  [ "[" ["{}"|S]+ ]* "[" ["{}"|S]* "{}" | "{}";
+#def G   [ [ "[!" GU ["{}"|S]* GT "]!" | "[!" "{}" "]!" ]:0 0:S | Ba | "{" | "}" ]* ;
+
+def Bl  "[" | "<" | "/" ;
+def Br  "]" | ">" | "\\" ;
+def BR  "]!" | ">!" | "\\!";
+def Ba  Bl | Br | "[!" | BR ;
+def GU  "{" "}" ["{" "}"|S]* Br [ ["{" "}"|S]+ Br ]* | "{" "}"; 
+def GT  [ Bl ["{" "}"|S]+ ]* Bl ["{" "}"|S]* "{" "}" | "{" "}";
+def G   [ [ "[!" GU ["{" "}"|S]* GT BR | "[!" "{" "}" BR ]:0 0:S | Ba | "{" | "}" ]* ;
+
+def AG01 [ [ Ba* "{" "}" Ba* ]^1 .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG02 [ [ Ba* "{" "}" Ba* ]^2 .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG03 [ [ Ba* "{" "}" Ba* ]^3 .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG04 [ [ Ba* "{" "}" Ba* ]^4 .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG05 [ [ Ba* "{" "}" Ba* ]^5 .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG06 [ [ Ba* "{" "}" Ba* ]^6 .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG07 [ [ Ba* "{" "}" Ba* ]^7 .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG08 [ [ Ba* "{" "}" Ba* ]^8 .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG09 [ [ Ba* "{" "}" Ba* ]^9 .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG10 [ [ Ba* "{" "}" Ba* ]^10 .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG11 [ [ Ba* "{" "}" Ba* ]^11 .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG12 [ [ Ba* "{" "}" Ba* ]^12 .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG13 [ [ Ba* "{" "}" Ba* ]^13 .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG14 [ [ Ba* "{" "}" Ba* ]^14 .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG15 [ [ Ba* "{" "}" Ba* ]^15 .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG16 [ [ Ba* "{" "}" Ba* ]^16 .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG17 [ [ Ba* "{" "}" Ba* ]^17 .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG18 [ [ Ba* "{" "}" Ba* ]^18 .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG19 [ [ Ba* "{" "}" Ba* ]^19 .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG20 [ [ Ba* "{" "}" Ba* ]^20 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG21 [ [ Ba* "{" "}" Ba* ]^21 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+
+def AG01 [ [ Ba* "{" "}" Ba* ]^1 .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG02 [ [ Ba* "{" "}" Ba* ]^2 .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG03 [ [ Ba* "{" "}" Ba* ]^3 .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG04 [ [ Ba* "{" "}" Ba* ]^4 .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG05 [ [ Ba* "{" "}" Ba* ]^5 .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG06 [ [ Ba* "{" "}" Ba* ]^6 .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG07 [ [ Ba* "{" "}" Ba* ]^7 .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG08 [ [ Ba* "{" "}" Ba* ]^8 .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG09 [ [ Ba* "{" "}" Ba* ]^9 .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG10 [ [ Ba* "{" "}" Ba* ]^10 .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG11 [ [ Ba* "{" "}" Ba* ]^11 .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG12 [ [ Ba* "{" "}" Ba* ]^12 .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG13 [ [ Ba* "{" "}" Ba* ]^13 .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG14 [ [ Ba* "{" "}" Ba* ]^14 .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG15 [ [ Ba* "{" "}" Ba* ]^15 .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG16 [ [ Ba* "{" "}" Ba* ]^16 .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG17 [ [ Ba* "{" "}" Ba* ]^17 .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG18 [ [ Ba* "{" "}" Ba* ]^18 .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG19 [ [ Ba* "{" "}" Ba* ]^19 .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG20 [ [ Ba* "{" "}" Ba* ]^20 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG21 [ [ Ba* "{" "}" Ba* ]^21 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+exit
+
+def AG01 [ [ Ba* "{" "}" Ba* ]^1 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG02 [ [ Ba* "{" "}" Ba* ]^2 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG03 [ [ Ba* "{" "}" Ba* ]^3 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG04 [ [ Ba* "{" "}" Ba* ]^4 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG05 [ [ Ba* "{" "}" Ba* ]^5 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG06 [ [ Ba* "{" "}" Ba* ]^6 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG07 [ [ Ba* "{" "}" Ba* ]^7 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG08 [ [ Ba* "{" "}" Ba* ]^8 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG09 [ [ Ba* "{" "}" Ba* ]^9 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG10 [ [ Ba* "{" "}" Ba* ]^10 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG11 [ [ Ba* "{" "}" Ba* ]^11 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG12 [ [ Ba* "{" "}" Ba* ]^12 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG13 [ [ Ba* "{" "}" Ba* ]^13 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG14 [ [ Ba* "{" "}" Ba* ]^14 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG15 [ [ Ba* "{" "}" Ba* ]^15 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG16 [ [ Ba* "{" "}" Ba* ]^16 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG17 [ [ Ba* "{" "}" Ba* ]^17 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG18 [ [ Ba* "{" "}" Ba* ]^18 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG19 [ [ Ba* "{" "}" Ba* ]^19 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG20 [ [ Ba* "{" "}" Ba* ]^20 .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+
+def AG01 [ [ Ba* "{" "}" Ba* ]^1 .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG02 [ [ Ba* "{" "}" Ba* ]^2 .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG03 [ [ Ba* "{" "}" Ba* ]^3 .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG04 [ [ Ba* "{" "}" Ba* ]^4 .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG05 [ [ Ba* "{" "}" Ba* ]^5 .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG06 [ [ Ba* "{" "}" Ba* ]^6 .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG07 [ [ Ba* "{" "}" Ba* ]^7 .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG08 [ [ Ba* "{" "}" Ba* ]^8 .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG09 [ [ Ba* "{" "}" Ba* ]^9 .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG10 [ [ Ba* "{" "}" Ba* ]^10 .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG11 [ [ Ba* "{" "}" Ba* ]^11 .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG12 [ [ Ba* "{" "}" Ba* ]^12 .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG13 [ [ Ba* "{" "}" Ba* ]^13 .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG14 [ [ Ba* "{" "}" Ba* ]^14 .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG15 [ [ Ba* "{" "}" Ba* ]^15 .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG16 [ [ Ba* "{" "}" Ba* ]^16 .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG17 [ [ Ba* "{" "}" Ba* ]^17 .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG18 [ [ Ba* "{" "}" Ba* ]^18 .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG19 [ [ Ba* "{" "}" Ba* ]^19 .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+def AG20 [ [ Ba* "{" "}" Ba* ]^20 .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+
+exit
+
+# 21 words have 3131655209939369984 graphs that can be represented with 3181 states.
+# Sentences of this length cover 0,64% of the sentences in the UD 2 treebank (training and development sets).
+
+
+
+
+
+#def RM(X)  [ X .o. "{" "}" -> "{}" .o. "{}" -> 0 || ["["|"<"|"/"|"[!"|"/!"|"<!"] _ ["]"|">"|"\\"|"]!"|">!"|"\\!"] ].2;
+#def RM(X)  [ X .o. "{" "}" -> "{}" ].2;
+#def AG10 RM(AG10);
+
+# Digraphs:
+defined AG01: 869 bytes. 12 states, 14 arcs, 4 paths.
+defined AG02: 1.6 kB. 26 states, 61 arcs, 64 paths.
+defined AG03: 4.2 kB. 106 states, 231 arcs, 1792 paths.
+defined AG04: 10.6 kB. 207 states, 638 arcs, 62464 paths.
+defined AG05: 28.5 kB. 704 states, 1783 arcs, 2437120 paths.
+defined AG06: 68.6 kB. 1327 states, 4350 arcs, 101859328 paths. 10.4
+defined AG07: 177.9 kB. 4326 states, 11345 arcs, 4459528192 paths. 12.08
+defined AG08: 420.5 kB. 8081 states, 26872 arcs, 201889939456 paths. 12.98
+defined AG09: 1.1 MB. 26092 states, 68967 arcs, 9373962207232 paths. 14.67
+defined AG10: 2.5 MB. 48639 states, 162254 arcs, 443939433742336 paths. 15.57
+
+# Graphs:
+# WEAK
+#defined AG01: 527 bytes. 6 states, 6 arcs, 2 paths. 2.58
+#defined AG02: 703 bytes. 12 states, 17 arcs, 8 paths. 3.58
+#defined AG03: 1.1 kB. 28 states, 45 arcs, 48 paths. 4.81
+#defined AG04: 1.8 kB. 47 states, 88 arcs, 352 paths. 5.55
+#defined AG05: 3.0 kB. 86 states, 165 arcs, 2880 paths. 6.43
+#defined AG06: 4.7 kB. 131 states, 272 arcs, 25216 paths. 7.03
+#defined AG07: 7.4 kB. 216 states, 447 arcs, 231168 paths. 7.75
+#defined AG08: 11.1 kB. 313 states, 682 arcs, 2190848 paths. 8.29
+#defined AG09: 16.9 kB. 490 states, 1053 arcs, 21292032 paths. 8.94
+#defined AG10: 24.5 kB. 691 states, 1544 arcs, 211044352 paths.
+#defined AG11: 36.5 kB. 1052 states, 2307 arcs, 2125246464 paths.
+#defined AG12: 52.1 kB. 1461 states, 3310 arcs, 21681954816 paths.
+#defined AG13: 76.3 kB. 2190 states, 4857 arcs, 223623069696 paths.
+#defined AG14: 108.0 kB. 3015 states, 6884 arcs, 2327818174464 paths.
+#defined AG15: 156.7 kB. 4480 states, 9999 arcs, 24424842461184 paths.
+#defined AG16: 220.3 kB. 6137 states, 14074 arcs, 258054752698368 paths.
+#defined AG17: 318.0 kB. 9074 states, 20325 arcs, 2742964283768832 paths.
+#defined AG18: 445.7 kB. 12395 states, 28496 arcs, 29312424612462592 paths.
+#defined AG19: 641.3 kB. 18276 states, 41019 arcs, 314739971287154688 paths.
+#defined AG20: 897.0 kB. 24925 states, 57382 arcs, 3393951437605044224 paths. 14.61   61.56
+#STRONG
+#defined B1: 3.3 kB. 1 state, 0 arcs, 1 path.
+#defined B2: 3.4 kB. 6 states, 6 arcs, 2 paths. 2.58
+#defined B3: 3.9 kB. 27 states, 33 arcs, 8 paths. 4.75
+#defined B4: 5.4 kB. 98 states, 131 arcs, 48 paths. 6.61
+#defined B5: 10.4 kB. 323 states, 452 arcs, 352 paths. 8.36
+#defined B6: 25.9 kB. 1012 states, 1446 arcs, 2880 paths. 9.98
+#defined B7: 73.1 kB. 3095 states, 4463 arcs, 25216 paths. 11.60
+#defined B8: 215.1 kB. 9362 states, 13553 arcs, 231168 paths. 13.19
+#defined B9: 641.9 kB. 28183 states, 40866 arcs, 2190848 paths. 14.78
+#defined B10: 1.9 MB. 84668 states, 122852 arcs, 21292032 paths. 16.37
+
+#def WEAK(X) X;
+def B1  WEAK([ G1 .o. RegLat .o. INV .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o.
+                                         T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. 0 ].1);
+def B2  WEAK([ G2 .o. RegLat .o. INV .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o.
+                                         T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. 0 ].1);
+def B3  WEAK([ G3 .o. RegLat .o. INV .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o.
+                                         T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. 0 ].1);
+def B4  WEAK([ G4 .o. RegLat .o. INV .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o.
+                                         T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. 0 ].1);
+def B5  WEAK([ G5 .o. RegLat .o. INV .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o.
+                                         T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. 0 ].1);
+def B6  WEAK([ G6 .o. RegLat .o. INV .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o.
+                                         T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. 0 ].1);
+def B7  WEAK([ G7 .o. RegLat .o. INV .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o.
+                                         T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. 0 ].1);
+def B8  WEAK([ G8 .o. RegLat .o. INV .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o.
+                                         T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. 0 ].1);
+def B9  WEAK([ G9 .o. RegLat .o. INV .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o.
+                                         T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. 0 ].1);
+def B10  WEAK([ GA .o. RegLat .o. INV .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o.
+                                         T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. 0 ].1);
+exit
+#regex BG - AG;
+#print words
+#regex AG - BG;
+#print words
+#exit
+
+# Achievement 5:  Taulukko, jossa on sulutusten tilavaatuvuudet eri perheille ja sanamäärille
+######################################################################################
+
+
+def Cons  ACYCD & CONNW & OUT & PROJW;
+def ALL1      [G1 .o. RegLat .o. Cons .o. T55 .o. 0].1;
+def regex SURF(ALL1);
+regex WEAK(ALL1);
+echo
+def ALL2      [G2 .o. RegLat .o. Cons .o. T55 .o. T55 .o. 0].1;
+regex SURF(ALL2);
+regex WEAK(ALL2);
+echo
+def ALL3      [G3 .o. RegLat .o. Cons .o. T55 .o. T55 .o. T55 .o. 0].1;
+regex SURF(ALL3);
+regex WEAK(ALL3);
+echo
+def ALL4      [G4 .o. RegLat .o. Cons .o. T55 .o. T55 .o. T55 .o. T55 .o. 0].1;
+regex SURF(ALL4);
+regex WEAK(ALL4);
+echo
+def ALL5      [G5 .o. RegLat .o. Cons .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. 0].1;
+regex SURF(ALL5);
+regex WEAK(ALL5);
+echo
+def ALL6      [G6 .o. RegLat .o. Cons .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. 0].1;
+regex SURF(ALL6);
+regex WEAK(ALL6);
+echo
+def ALL7      [G7 .o. RegLat .o. Cons .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. 0].1;
+regex SURF(ALL7);
+regex WEAK(ALL7);
+echo
+def ALL8      [G8 .o. RegLat .o. Cons .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. 0].1;
+regex SURF(ALL8);
+regex WEAK(ALL8);
+echo
+def ALL9      [G9 .o. RegLat .o. Cons .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. 0].1;
+regex SURF(ALL9);
+regex WEAK(ALL9);
+echo
+def ALLA      [GA .o. RegLat .o. Cons .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. 0].1;
+#regex SURF(ALLA);
+#regex WEAK(ALLA);
+#exit
+
+# Tuotettu graafi joka kertoo miten tilojen logaritmit kasvavat digrapheilla ja projektiivisilla puilla
+
+
+# Goal 3:  CONLL conversio matalille suluille ja sulkujen korkeusjakauma
+########################################################################
+#   implementoitu   depconv -t ylijyra2 -string
+
+
+# Goal 4:  UD-aineiston lataus ja konversio sulutuksiksi - lataus FOMAan.
+########################################################################
+
+#   20648  1
+#   121530 2
+#   206838 3
+#   197118 4
+#   67929  5
+#   14022  6
+#   2164   7
+#   242    8
+#   22     9
+#   5      10
+
+# Goal 6:  Taulukko, joka kertoo miten paljon kaikista sulutuksista katetaan - doable
+
+
+# def AG20 [ [ Ba* "{" "}" Ba* ]^20 .o. G .o. G .o. G .o. G .o. G .o. G .o. ["{" "}"|S]* ].1;
+
+# defined AG01: 527 bytes. 6 states, 6 arcs, 2 paths.
+# defined AG01: 527 bytes. 6 states, 6 arcs, 2 paths.
+# defined AG02: 703 bytes. 12 states, 17 arcs, 8 paths.
+# defined AG02: 703 bytes. 12 states, 17 arcs, 8 paths.
+# defined AG03: 1.1 kB. 28 states, 45 arcs, 48 paths.
+# defined AG03: 1.1 kB. 28 states, 45 arcs, 48 paths.
+# defined AG04: 1.8 kB. 47 states, 88 arcs, 352 paths.
+# defined AG04: 1.8 kB. 47 states, 88 arcs, 352 paths.
+# defined AG05: 3.0 kB. 86 states, 165 arcs, 2880 paths.
+# defined AG05: 3.0 kB. 86 states, 165 arcs, 2880 paths.
+# defined AG06: 4.7 kB. 131 states, 272 arcs, 25216 paths.
+# defined AG06: 4.7 kB. 131 states, 272 arcs, 25216 paths.
+# defined AG07: 7.4 kB. 216 states, 447 arcs, 231168 paths.
+# defined AG07: 7.4 kB. 216 states, 447 arcs, 231168 paths.
+# defined AG08: 11.1 kB. 313 states, 682 arcs, 2190848 paths.
+# defined AG08: 11.1 kB. 313 states, 682 arcs, 2190848 paths.
+# defined AG09: 16.9 kB. 490 states, 1053 arcs, 21292032 paths.
+# defined AG09: 16.9 kB. 490 states, 1053 arcs, 21292032 paths.
+# defined AG10: 24.5 kB. 691 states, 1544 arcs, 211044352 paths.
+# defined AG10: 24.5 kB. 691 states, 1544 arcs, 211044352 paths.
+# defined AG11: 36.5 kB. 1052 states, 2307 arcs, 2125246464 paths.
+# defined AG11: 36.5 kB. 1052 states, 2307 arcs, 2125246464 paths.
+# defined AG12: 52.1 kB. 1461 states, 3310 arcs, 21681954816 paths.
+# defined AG12: 52.1 kB. 1461 states, 3310 arcs, 21681954816 paths.
+
+# defined AG13: 70.3 kB. 1966 states, 4473 arcs, 223620083712 paths.
+# defined AG13: 76.3 kB. 2190 states, 4857 arcs, 223623069696 paths. 0.99999
+
+# defined AG14: 88.5 kB. 2471 states, 5636 arcs, 2327611146240 paths.
+# defined AG14: 108.0 kB. 3015 states, 6884 arcs, 2327818174464 paths.0.9999
+
+# defined AG15: 106.7 kB. 2976 states, 6799 arcs, 24416842678272 paths.
+# defined AG15: 156.7 kB. 4480 states, 9999 arcs, 24424842461184 paths. 0.9997
+
+# defined AG16: 124.8 kB. 3481 states, 7962 arcs, 257826742075392 paths.
+# defined AG16: 220.3 kB. 6137 states, 14074 arcs, 258054752698368 paths. 0.9991
+
+# defined AG17: 143.0 kB. 3986 states, 9125 arcs, 2737607184875520 paths.
+# defined AG17: 318.0 kB. 9074 states, 20325 arcs, 2742964283768832 paths. 0.998
+
+# defined AG18: 161.2 kB. 4491 states, 10288 arcs, 29202412447989760 paths.
+# defined AG18: 445.7 kB. 12395 states, 28496 arcs, 29312424612462592 paths. 0.996
+
+# defined AG19: 179.3 kB. 4996 states, 11451 arcs, 312694072312332288 paths.
+# defined AG19: 641.3 kB. 18276 states, 41019 arcs, 314739971287154688 paths. 0.993
+
+# defined AG20: 197.5 kB. 5501 states, 12614 arcs, 3358682892406358016 paths. 
+# defined AG20: 897.0 kB. 24925 states, 57382 arcs, 3393951437605044224 paths. 0.990 = 0.98961
+
+# Tehty kuva
+
+
+# Goal 2:  Transducer resolving the sibling bracketing in one pass - doable
+
+# Goal 8:  Transduktori, joka tallentaa n 0-sulkua ja sitten muuttaa n+1th sulkevan sulun !-suluksi
+           Kun sovelletaan toisinpäin
+
+# Goal 9:  Muuta jokainen aksiooma muotoon, joka toimii 
+           ACYCU  =    ei sellaista että   L Lei-loose
+	   CONNW  =    ei ${}, {}$, }{, eikä Rloose{. Rloose$
+	   ACYCD  =    ei [L> [Lleft
+	   UNAMB  =    ...
+	   PROJW
+
+
+echo ***************** UNAMBIGUITY **************
+def Map     [ "[":L3X    | "<":L2X    | "/":L1X    | "{"   | 
+              "]":R3X    | "\\":R2X   | ">":R1X    | "}"   |  \SIGMA  ]*;
+def Amb(X)  [ X .o. Map.i .o. Map .o. X ] - ?*;
+regex Amb(ALL0);
+echo the following should be empty
+echo **********************************
+print words
+echo **********************************
+echo
+
+# redefined ALL0: 944.2 kB. 45403 states, 60216 arcs, 66339 paths.
+# 33.6 kB. 822 states, 1905 arcs, 66339 paths.
+
+echo ******************* ENUMERATION OF GRAPHS *********************
+def Ext(X)  [ Map .o. X ].1;
+# for G5 we need 5 x T55
+def ALL0 [ G9 .o. RegLat .o. ACYCD .o. ACYCU .o. CONNW
+              .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 
+              .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. 0 ].1;
+regex  Weak(Ext( ALL0 ));
+print words 20
+regex  Ext( ALL0 )  - Weaks( Ext( ALL0 ) );
+
+echo **************** EXAMPLE GRAPHS IN EACH FAMILY ****************
+def ALL0 [ G4 .o. RegLat .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. 0 ].1;
+source enum-examples.foma
+echo **********************************
+print lower-words 999999999
+echo **********************************
+echo
+echo ******************* ENUMERATION OF A FAMILY *********************
+# This computes the count of 3-node w.p. out digraphs:
+def ALL0      [G3 .o. RegLat .o. OUT & PROJW ];
+def ALL1      [ ALL0  .o. T55 ];
+def ALL2      [ ALL1  .o. T55 ];
+def ALL3      [ ALL2  .o. T55 .o. 0 ];
+echo
+echo ******************* COUNTS TO THE ONTOLOGY **********************
+# This was used to build the counts in the ontology lattice
+# usage:  foma -f enum.foma | egrep 'TAXO' | uniq -c
+#
+def ALL0      [G3 .o. RegLat .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. 0].1;
+source enum-taxo.foma
+echo
+echo ******************* ENUMERATION OF CLASSIFICATIONS *********************
+# this prints one line per a graph in different sizes and classes
+# usage:  foma -f enum.foma | egrep 'FAM' | sort | uniq -c
+#
+def ALL0      [G1 .o. RegLat .o. T55 .o. 0].1;
+def NODES " 1";
+source enum-total.foma
+def ALL0      [G2 .o. RegLat .o. T55 .o. T55 .o. 0].1;
+def NODES " 2";
+source enum-total.foma
+def ALL0      [G3 .o. RegLat .o. T55 .o. T55 .o. T55 .o. 0].1;
+def NODES " 3";
+#source enum-total.foma
+#def ALL0      [G4 .o. RegLat .o. T55 .o. T55 .o. T55 .o. T55 .o. 0].1;
+#def NODES " 4";
+#source enum-total.foma
+#def ALL0      [G5 .o. RegLat .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. 0].1;
+#def NODES " 5";
+#source enum-total.foma
+#def ALL0      [G6 .o. RegLat .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. 0].1;
+#def NODES " 6";
+#source enum-total.foma
+#def ALL0      [G7 .o. RegLat .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. 0].1;
+#def NODES " 7";
+#source enum-total.foma
+#def ALL0      [G8 .o. RegLat .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. T55 .o. 0].1;
+#def NODES " 8";
