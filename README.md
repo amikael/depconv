@@ -4,15 +4,17 @@ A tool for converting between various encoding formats for dependency graphs.
 Copyright (c) 2017 - Anssi Yli-Jyrä      
 
 Developers:
-   anssi.yli-jyra () helsinki fi   University of Helsinki
-   (you are encouraged to contribute and become a co-developer)
+- Anssi Yli-Jyrä (anssi.yli-jyra) at the University of Helsinki (helsinki.fi)
+  Email works.
+- (you are encouraged to contribute and become a co-developer)
 
 The GNU License is tentative/negotiable.
 
 Disclaimers:
 ------------
-- may contain bugs
-- after an application, this script must be run in the inverse mode to verify that the encoding is lossless and bugless
+- This is currently released just for documentation purposes; may contain bugs.
+- May need more documentation; please contact the developer.
+- in any serius application, this script must be run in the inverse mode to verify that the encoding is lossless and bugless
 
 Citing:
 -------
@@ -61,6 +63,19 @@ Additional, tentative formats:
 
 The algorithms for other formats are included for review purposes and the tool itself
 needs a separate publication.  
+
+Parts:
+------
+- depconv.py - the main of the converter script
+- LIBopts.py - user interface (commandline options etc.)
+- LIBconll1.py - basic U-CONLL handling
+- LIBconll2.py - conversion functions etc.
+
+extras:
+- ud_per_language.tgz - directories of symbolic links to UD-files used for computing language specific statistics in YJ 2017 
+- enum.depconv.foma - a version of Anssi Yli-Jyrä and Carlos Gómez-Rodríguez (2017) with some
+  playing with transduction between formats.  This file is not part of depconv but is released for documentation purposes.
+  Cleaning of the script is in the to-do list.
 
 Known bugs/caveats & Requests for help in coding:
 ------------------------------------------------
