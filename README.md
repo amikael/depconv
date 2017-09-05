@@ -6,9 +6,6 @@ Copyright (c) 2017 - Anssi Yli-Jyrä
 Developers:
    anssi.yli-jyra () helsinki fi   University of Helsinki
    (you are encouraged to contribute and become a co-developer)
-Acknowledgements:
-  - Carlos Gómez-Rodríguez for brainstorming some requirements
-  - Marco Kuhlmann for a caveat notice   
 
 The GNU License is tentative/negotiable.
 
@@ -20,15 +17,19 @@ Disclaimers:
 Citing:
 -------
 
-   1) to cite the weak bracketing part: 
-      Anssi Yli-Jyrä (2017): 
-      Bounded-Depth High-Coverage Search Space for Noncrossing Parses. FSMNLP 2017. Umeå.
-   2) to cite the strong bracketing part:
-      Anssi Yli-Jyrä and Carlos Gómez-Rodríguez (2017): 
-      Generic axiomatization of families of noncrossing graphs in dependency parsing. 
-      ACL 2017. Vancouver. 
-      The algorithm in this paper is not exactly the same, but the encoding comes from this.
-   3) the tool as a whole has not be properly published yet, but you can cite parts of it
+1) to cite the weak bracketing part: 
+
+   Anssi Yli-Jyrä (2017): 
+   Bounded-Depth High-Coverage Search Space for Noncrossing Parses. FSMNLP 2017. Umeå.
+
+2) to cite the strong bracketing part:
+
+   Anssi Yli-Jyrä and Carlos Gómez-Rodríguez (2017): 
+   Generic axiomatization of families of noncrossing graphs in dependency parsing. 
+   ACL 2017. Vancouver. 
+   The algorithm in this paper is not exactly the same, but the encoding comes from this.
+
+3) the tool as a whole has not be properly published yet, but you can cite parts of it
   
 File formats:
 -------------
@@ -61,7 +62,7 @@ Additional, tentative formats:
 The algorithms for other formats are included for review purposes and the tool itself
 needs a separate publication.  
 
-Known bugs/caveats & requests for help in coding:
+Known bugs/caveats & Requests for help in coding:
 ------------------------------------------------
 - currently supports only the U-CONNL primary structure with further restrictions like nonprojective trees
 - the naming of the formats is unsatisfatory
@@ -70,3 +71,9 @@ Known bugs/caveats & requests for help in coding:
 - lossless encoding for crossing trees and graphs
 - needs support for various projectivisation methods
 - projectivization is heuristic while optimizing methods exist 
+
+Acknowledgements:
+-----------------
+- Carlos Gómez-Rodríguez for brainstorming some requirements
+- Marco Kuhlmann for a caveat notice   
+
