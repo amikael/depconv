@@ -1,5 +1,5 @@
 # depconv version 0.1 (5 Sep 2017)
-----------------------------------
+
 A tool for converting between various encoding formats for dependency graphs.  
 Copyright (c) 2017 - Anssi Yli-Jyrä      
 
