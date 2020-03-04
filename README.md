@@ -1,14 +1,9 @@
-# depconv version 0.1 (5 Sep 2017)
+# depconv version 0.1 (5 Sep 2017) 
 
 A tool for converting between various encoding formats for dependency graphs.  
 Copyright (c) 2017 - Anssi Yli-Jyrä      
 
-Developers:
-- Anssi Yli-Jyrä (anssi.yli-jyra) at the University of Helsinki (helsinki.fi)
-  Email works.
-- (you are encouraged to contribute and become a co-developer)
-
-The GNU License is tentative/negotiable.
+The GNU License.
 
 Disclaimers:
 ------------
